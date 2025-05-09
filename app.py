@@ -1,8 +1,9 @@
 from flask import Flask, request, render_template
 import pandas as pd
-from sklearn.linear_model import LinearRegression
+from sklearn.ensemble import RandomForestRegressor
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.compose import ColumnTransformer
+import os
 
 app = Flask(__name__)
 
@@ -22,15 +23,13 @@ categorical_features = ['mainroad', 'guestroom', 'basement', 'hotwaterheating',
 numerical_features = ['area', 'bedrooms', 'bathrooms', 'stories', 'parking']
 
 preprocessor = ColumnTransformer(
-    transformers=[
-        ('cat', OneHotEncoder(drop='first'), categorical_features)
-    ],
+    transformers=[('cat', OneHotEncoder(drop='first'), categorical_features)],
     remainder='passthrough'  # Keep numerical features
 )
 
-# Preprocess and train the model using Linear Regression
+# Preprocess and train the model
 X_processed = preprocessor.fit_transform(X)
-model = LinearRegression()
+model = RandomForestRegressor(n_estimators=100, random_state=42)
 model.fit(X_processed, y)
 
 # Get list of possible values for dropdowns
@@ -46,7 +45,7 @@ dropdown_options = {
 
 @app.route('/')
 def home():
-    return render_template('index2.html', options=dropdown_options)
+    return render_template('index.html', options=dropdown_options)
 
 @app.route('/predict', methods=['POST'])
 def predict():
@@ -76,7 +75,17 @@ def predict():
     predicted_price = model.predict(input_processed)[0]
     predicted_price = round(predicted_price, 2)
 
-    return render_template('index2.html', prediction_text=f"Predicted House Price: ₹ {predicted_price}", options=dropdown_options)
+    return render_template('index.html', prediction_text=f"Predicted House Price: ₹ {predicted_price}", options=dropdown_options)
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    import webbrowser
+    import threading
+
+    def open_browser():
+        webbrowser.open_new("http://127.0.0.1:5000/")
+
+    # For local development (you can remove this in production if not needed)
+    threading.Timer(1.25, open_browser).start()
+
+    # Use dynamic port from environment or default to 5000
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)), debug=True)
